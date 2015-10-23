@@ -39,15 +39,8 @@ def login_required(f):
 
 @app.route('/')
 def homePage():
-    categories = session.query(Category).order_by(Category.name).all()
     items = session.query(Item).order_by(Item.id).all()
-
-    login_session['state'] = state
-    loggedIn = ""
-    if 'username' in login_session:
-        loggedIn = login_session['username']
-
-    return render_template('main.html', categories = categories, items = items, STATE=state(), user = loggedIn)
+    return render_template('main.html', items = items, categories = categories(),  STATE=state(), user = loggedIn())
 
 
 @app.route('/gconnect', methods=['POST'])
@@ -107,7 +100,7 @@ def gconnect():
         return response
 
     # Store the access token in the session for later use.
-    login_session['credentials'] = credentials
+    login_session['access_token'] = credentials.access_token
     login_session['gplus_id'] = gplus_id
 
     # Get user info
@@ -126,37 +119,35 @@ def gconnect():
     if not user_id:
         user_id = createUser(login_session)
     login_session['user_id'] = user_id
-    flash('Successfully logged in')
-    return redirect(url_for('homePage'))
+    return login_session['username']
 
 
 @app.route('/logout')
 @app.route('/gdisconnect')
 def gdisconnect():
     # Only disconnect a connected user.
-    credentials = login_session.get('credentials')
-    if credentials is None:
+    access_token = login_session['access_token']
+    if access_token is None:
         response = make_response(
             jso.dumps('Current user not connected.'), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
-    access_token = credentials.access_token
+    #access_token = credentials.access_token
     url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
 
     if result['status'] == '200':
         # Reset the user's sesson.
-        del login_session['credentials']
+        del login_session['access_token']
         del login_session['gplus_id']
         del login_session['username']
         del login_session['email']
         del login_session['picture']
         loggedIn = ""
 
-        response = make_response(json.dumps('Successfully disconnected.'), 200)
-        response.headers['Content-Type'] = 'application/json'
-        return response
+        flash('Successfully logged out.')
+        return redirect(url_for('homePage'))
     else:
         # For whatever reason, the given token was invalid.
         response = make_response(
@@ -167,20 +158,18 @@ def gdisconnect():
 
 @app.route('/category/<string:category_name>/')
 def category(category_name):
-    categories = session.query(Category).order_by(Category.name).all()
     category = session.query(Category).filter_by(name = category_name).one()
     items = session.query(Item).order_by(Item.name).filter_by(category_name = category.name).all()
     
-    return render_template('category.html', categories = categories, category = category, items = items) 
+    return render_template('category.html', category = category, items = items, categories = categories(),  STATE=state(), user = loggedIn()) 
 
 
 @app.route('/category/<string:category_name>/<string:item_name>/')
 def item(category_name, item_name):
-    categories = session.query(Category).order_by(Category.name).all()
     category = session.query(Category).filter_by(name = category_name).one()
     item = session.query(Item).order_by(Item.name).filter_by(category_name = category.name, name = item_name).one()
     
-    return render_template('item.html', categories = categories, category = category, item = item) 
+    return render_template('item.html', category = category, item = item, categories = categories(),  STATE=state(), user = loggedIn()) 
 
 
 @app.route('/newCategory', methods=['GET', 'POST'])
@@ -193,8 +182,7 @@ def newCategory():
         flash("New category created")
         return redirect(url_for('homePage'))
 
-    categories = session.query(Category).order_by(Category.name).all()
-    return render_template('newcategory.html', categories = categories)
+    return render_template('newcategory.html', categories = categories(),  STATE=state(), user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/newitem', methods=['GET', 'POST'])
@@ -214,7 +202,7 @@ def newItem(category_name):
         flash("New item created")
         return redirect(url_for('category', category_name=category_name))
 
-    return render_template('newitem.html', category_name=category_name)
+    return render_template('newitem.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
 
 
 @app.route('/catalog.json')
@@ -237,11 +225,12 @@ def editCategory(category_name):
     #proceed with request
     if request.method == 'POST':
         session.query(Category.name).filter(Category.name == category_name).update({Category.name: request.form['name']})
+        session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['name']})
         session.commit()
         flash("Category edited.")
-        return redirect(url_for('category', category_name=category_name))
+        return redirect(url_for('category', category_name=request.form['name']))
 
-    return render_template('editcategory.html', category_name=category_name)
+    return render_template('editcategory.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/deletecategory', methods=['GET', 'POST'])
@@ -261,7 +250,7 @@ def deleteCategory(category_name):
         flash("Category deleted.")
         return redirect(url_for('homePage', ))
 
-    return render_template('deletecategory.html', category_name=category_name)
+    return render_template('deletecategory.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
 
 
 def createUser(login_session):
@@ -286,12 +275,24 @@ def getUserID(username):
     except:
         return None
 
-
+#return state key for authentication
 def state():
-    return ''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
+    login_session['state'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
+    return login_session['state']
 
 
+#Return all categories 
+def categories():
+    return session.query(Category).order_by(Category.name).all()
+
+
+#Return username or empty string if nobody is logged in
+def loggedIn():
+    user = ""
+    if 'username' in login_session:
+        user = login_session['username']
+    return user
 if __name__ == '__main__':
-    app.secret_key = 'fsdfkadhfakds687689768sfdasdfsdaf'
+    app.secret_key = 'fsdfsdg56546fkadhfakds687689768gfdgdfsfdasdfsdaf'
     app.debug = True
     app.run(host = '0.0.0.0', port = 5000) 

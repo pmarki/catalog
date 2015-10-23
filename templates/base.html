@@ -14,7 +14,7 @@
             <div class="col-xs-1"></div>
             <div class="col-xs-9"> 
                 <h1><a href="{{ url_for('homePage') }}"> Catalog App</a></h1>
-                <p>{{user}}</p>
+                <p id="user">{{user}}</p>
             </div>
             <div class="col-xs-1">
                 <div id="logout"><a href="{{ url_for('gdisconnect') }}"  tabindex="0" class="btn btn-lg btn-danger" role="button">Log out</a></div>
@@ -24,7 +24,7 @@
             <div class="col-xs-1"></div>
         </header>
 
-        <div class="row  bg-info">
+        <div class="row">
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
                     <div id="message" class="alert alert-warning" role="alert">
@@ -37,7 +37,7 @@
 
         <!-- child template -->
         
-        <div id="categories" class="col-xs-6 panel panel-info">
+        <div id="categories" class="col-xs-5 panel panel-info">
     <h2 class="panel-heading">Categories:</h2>
     <div class="panel-body">
 
@@ -67,6 +67,7 @@ jQuery(document).ready(function() {
     if ( '{{ user }}' != '' ) {
         $('#signin').attr('style', 'display: none');
         $('#logout').attr('style', 'display: block');
+        $('#user').text( '{{ user }}' );
     } else {
         $('#signin').attr('style', 'display: block');
         $('#logout').attr('style', 'display: none');
@@ -92,6 +93,9 @@ jQuery(document).ready(function() {
 //Google athentication 
 function signinCallback(authResult) {
     console.log("click");
+    $('#logout').attr('style', 'display: block');
+    $('#signin').attr('style', 'display: none');
+    $('#logout a').text("Logging...");
             if (authResult['code']) {
                 //Send one-time-use code to the server
                 $.ajax({
@@ -102,10 +106,10 @@ function signinCallback(authResult) {
                     data: authResult['code'],
                     success: function(result) {
                         if (result) {
-                            $('#message').html('Login successful!</br>' + result )
-                            //Hide the sign-in button
-                            $('#signin').attr('style', 'display: none');
-                            $('#logout').attr('style', 'display: block');
+                            $('#message').html( "Logged in as " + result);
+                            $('#logout a').text("Log out");
+                            $('#user').text( result );
+
                         } else if (authResult['error']) {
                             console.log('There was an error: ' + authResult['error']);
                         } else {
