@@ -1,0 +1,19 @@
+
+{%extends "base.html" %}
+{%block content %}
+
+<div id="items" class="col-xs-6 panel panel-info">
+	<h2 class="panel-heading">Recently added items:</h2>
+	<div class="panel-body">
+
+		{% for i in items %}
+        	<h3><a href="{{ url_for('item', category_name=category.name, item_name=i.name) }}">{{i.name}} </a></h3>
+        	<p><small>{{i.description}}</small></p>
+		{% endfor %}
+
+	</div>
+	<div class="panel-footer">
+		<p><a href="{{ url_for('newItem', category_name=category.name) }}">Add new item</a></p>
+	</div>
+</div><!--items-->
+{%endblock%}

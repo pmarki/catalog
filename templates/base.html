@@ -1,0 +1,121 @@
+<html>
+<head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+    <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="//apis.google.com/js/platform.js?onload=start"> 
+    </script>
+
+</head>
+<body class="lead">
+    <div class="container">
+        <header class="bg-primary row">
+            <div class="col-xs-1"></div>
+            <div class="col-xs-9"> 
+                <h1><a href="{{ url_for('homePage') }}"> Catalog App</a></h1>
+                <p>{{user}}</p>
+            </div>
+            <div class="col-xs-1">
+                <div id="logout"><a href="{{ url_for('gdisconnect') }}"  tabindex="0" class="btn btn-lg btn-danger" role="button">Log out</a></div>
+                <div id="signin" ><span class="g-signin" data-scope="openid email" data-clientid="521922821250-srdjgf49l12inch07bkl9emkrb4gqhkr.apps.googleusercontent.com" data-redirecturi="postmessage" data-accesstype="offline" data-cookiepolicy="single_host_origin" data-callback="signinCallback"  data-approvalprompt="force"></span></div>    
+                
+            </div>
+            <div class="col-xs-1"></div>
+        </header>
+
+        <div class="row  bg-info">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div id="message" class="alert alert-warning" role="alert">
+                        {% for message in messages %}
+                            <p>{{message}}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+        <!-- child template -->
+        
+        <div id="categories" class="col-xs-6 panel panel-info">
+    <h2 class="panel-heading">Categories:</h2>
+    <div class="panel-body">
+
+        {% for cat in categories %}  
+            {% if cat == category %}
+                <h3 class="bg-danger">
+            {% else %}
+                <h3>
+            {% endif %}
+                <a title ="{{cat.description}}" href="{{ url_for('category', category_name=cat.name) }}">{{cat.name}}</a>
+            </h3>
+        {% endfor %}
+    </div>
+    <div class="panel-footer">
+        <p><a href="{{ url_for('newCategory') }}">Add new category</a></p>
+    </div>
+</div><!--categories-->
+        {% block content %}
+        {% endblock %}
+        </div><!--row-->
+    </div><!--container-->
+
+
+<script>
+jQuery(document).ready(function() {
+    console.log("Ready");
+    if ( '{{ user }}' != '' ) {
+        $('#signin').attr('style', 'display: none');
+        $('#logout').attr('style', 'display: block');
+    } else {
+        $('#signin').attr('style', 'display: block');
+        $('#logout').attr('style', 'display: none');
+    }
+
+
+    //  $('#login').popover({
+    //     animation: false,
+    //     trigger:'focus',
+    //     html: true,
+    //     title:'Please log in <button type="button" class="close">&times;</button>',
+    //     content: function () {
+    //         return "";
+    //     },
+    //     placement:'bottom'
+    // });
+
+    // $('.popover .g-signin').click(function() {
+    //     $(this).popover('toggle');
+    // });
+ });
+
+//Google athentication 
+function signinCallback(authResult) {
+    console.log("click");
+            if (authResult['code']) {
+                //Send one-time-use code to the server
+                $.ajax({
+                    type: 'POST',
+                    url: '/gconnect?state={{STATE}}',
+                    processData: false,
+                    contentType: 'application/octet-stream; charset=utf-8',
+                    data: authResult['code'],
+                    success: function(result) {
+                        if (result) {
+                            $('#message').html('Login successful!</br>' + result )
+                            //Hide the sign-in button
+                            $('#signin').attr('style', 'display: none');
+                            $('#logout').attr('style', 'display: block');
+                        } else if (authResult['error']) {
+                            console.log('There was an error: ' + authResult['error']);
+                        } else {
+                            $('#message').html('Failed to make a server-side call. Check your configuration and console.');
+                        }
+                    }
+
+                });
+            }
+        }
+</script>
+</body>
+</html>
