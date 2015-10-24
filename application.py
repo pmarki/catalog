@@ -11,7 +11,7 @@ import httplib2
 from flask import make_response
 import requests
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Category, Item, User
 
@@ -39,7 +39,7 @@ def login_required(f):
 
 @app.route('/')
 def homePage():
-    items = session.query(Item).order_by(Item.id).all()
+    items = session.query(Item).order_by(Item.id.desc()).limit(5)
     return render_template('main.html', items = items, categories = categories(),  STATE=state(), user = loggedIn())
 
 
@@ -176,7 +176,7 @@ def item(category_name, item_name):
 @login_required
 def newCategory():
     if request.method == 'POST':
-        newCat = Category(name = request.form['name'], user_id = login_session['user_id'])
+        newCat = Category(name = request.form['name'], user_id = login_session['user_id'], description = request.form['description'])
         session.add(newCat)
         session.commit()
         flash("New category created")
@@ -185,38 +185,10 @@ def newCategory():
     return render_template('newcategory.html', categories = categories(),  STATE=state(), user = loggedIn())
 
 
-@app.route('/category/<string:category_name>/newitem', methods=['GET', 'POST'])
-@login_required
-def newItem(category_name):
-    #check user permissions
-    cat = session.query(Category).filter_by(name = category_name).one()
-    if cat.user_id  != login_session['user_id']:
-        flash("You are not allowed to add items in this category.")
-        return redirect(url_for('category', category_name=category_name))
-
-    #proceed with request
-    if request.method == 'POST':
-        newItem = Item(name = request.form['name'], category_name=category_name, user_id = login_session['user_id'])
-        session.add(newItem)
-        session.commit()
-        flash("New item created")
-        return redirect(url_for('category', category_name=category_name))
-
-    return render_template('newitem.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
-
-
-@app.route('/catalog.json')
-def json():
-    #category = session.query(Category).filter_by(name = category_name).all()
-    items = session.query(Item).order_by(Item.id).all()
-    
-    return jsonify(Items=[i.serialize for i in items])
-
-
 @app.route('/category/<string:category_name>/editcategory', methods=['GET', 'POST'])
 @login_required
 def editCategory(category_name):
-    #check user permissions
+    #check if user is allowed to edit the category
     cat = session.query(Category).filter_by(name = category_name).one()
     if cat.user_id  != login_session['user_id']:
         flash("You are not allowed to edit this category.")
@@ -224,13 +196,16 @@ def editCategory(category_name):
 
     #proceed with request
     if request.method == 'POST':
-        session.query(Category.name).filter(Category.name == category_name).update({Category.name: request.form['name']})
+        session.query(Category.name).filter_by(name = category_name).update({Category.name: request.form['name']})
+        session.query(Category.name).filter_by(name = category_name).update({Category.description: request.form['description']})
         session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['name']})
         session.commit()
         flash("Category edited.")
         return redirect(url_for('category', category_name=request.form['name']))
 
-    return render_template('editcategory.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
+    #show edit category page
+    category = session.query(Category).filter_by(name = category_name).one()
+    return render_template('editcategory.html', category=category, categories = categories(),  STATE=state(), user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/deletecategory', methods=['GET', 'POST'])
@@ -244,15 +219,89 @@ def deleteCategory(category_name):
 
     #proceed with request
     if request.method == 'POST':
-        session.query(MenuItem.name).filter(MenuItem.id == menu_id).delete()
-        session.query(Category.name).filter(Category.name == category_name).delete()
+        session.query(Item.category_name).filter_by(category_name = category_name).delete()
+        session.query(Category).filter(Category.name == category_name).delete()
         session.commit()
         flash("Category deleted.")
-        return redirect(url_for('homePage', ))
+        return redirect(url_for('homePage'))
 
+    #show delete category page
     return render_template('deletecategory.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
 
 
+@app.route('/category/<string:category_name>/newitem', methods=['GET', 'POST'])
+@login_required
+def newItem(category_name):
+    #check user permissions
+    cat = session.query(Category).filter_by(name = category_name).one()
+    if cat.user_id  != login_session['user_id']:
+        flash("You are not allowed to add items in this category.")
+        return redirect(url_for('category', category_name=category_name))
+
+    #proceed with request
+    if request.method == 'POST':
+        newItem = Item(name = request.form['name'], category_name=category_name, user_id = login_session['user_id'], description = request.form['description'])
+        session.add(newItem)
+        session.commit()
+        flash("New item created")
+        return redirect(url_for('category', category_name=category_name))
+
+    return render_template('newitem.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
+
+
+@app.route('/category/<string:category_name>/<string:item_name>/edititem', methods=['GET', 'POST'])
+@login_required
+def editItem(item_name, category_name):
+    #check if user is allowed to edit the item
+    cat = session.query(Category).filter_by(name = category_name).one()
+    if cat.user_id  != login_session['user_id']:
+        flash("You are not allowed to edit this item.")
+        return redirect(url_for('item', item_name=item_name, category_name=category_name))
+
+    #proceed with request
+    if request.method == 'POST':
+        #session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['new_category']})
+        session.query(Item.name).filter_by(name = item_name).update({Item.name: request.form['name']})
+        session.query(Item.description).filter_by(name = item_name).update({Item.description: request.form['description']})
+        session.commit()
+        flash("Item edited.")
+        return redirect(url_for('category', category_name=category_name))
+
+    #show edit item page
+    item = session.query(Item).filter_by(name = item_name, category_name = category_name).one()
+    return render_template('edititem.html', item=item, categories = categories(),  STATE=state(), user = loggedIn())
+
+
+@app.route('/category/<string:category_name>/<string:item_name>/deleteitem', methods=['GET', 'POST'])
+@login_required
+def deleteItem(item_name, category_name):
+    #check if user is allowed to edit the item
+    cat = session.query(Category).filter_by(name = category_name).one()
+    if cat.user_id  != login_session['user_id']:
+        flash("You are not allowed to delete this item.")
+        return redirect(url_for('item', item_name=item_name, category_name=category_name))
+
+    #proceed with request
+    if request.method == 'POST':
+        #session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['new_category']})
+        session.query(Item).filter_by(name = item_name).delete()
+        session.commit()
+        flash("Item deleted.")
+        return redirect(url_for('category', category_name=category_name))
+
+    #show delete item page
+    item = session.query(Item).filter_by(name = item_name, category_name = category_name).one()
+    return render_template('deleteitem.html', item=item, categories = categories(),  STATE=state(), user = loggedIn())
+
+
+@app.route('/catalog.json')
+def json():
+    #category = session.query(Category).filter_by(name = category_name).all()
+    items = session.query(Item).order_by(Item.id).all()
+    
+    return jsonify(Items=[i.serialize for i in items])
+
+    
 def createUser(login_session):
     newUser = User(name = login_session['username'], 
                 email = login_session['email'],

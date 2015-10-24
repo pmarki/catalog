@@ -1,1 +1,17 @@
- 
+{%extends "base.html" %}
+{%block content %}
+
+	<h2 class="panel-heading"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span> Delete category </h2>
+	<div class="panel-body">
+		<form action="{{ url_for('deleteCategory', category_name=category_name )}}" method = 'POST'>
+			<div class="form-group">
+				<p>Do you really want to delete <span class="label label-warning"><span class="glyphicon glyphicon-book" aria-hidden="true"></span> {{category_name}}</span> and all items in this category?</p>
+			</div>			
+			<div id="buttons">
+				<a class="btn btn-success" href="{{ url_for('category', category_name=category_name ) }}"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel<span class="sr-only">and go back</span></a>
+				<button type="submit" class="btn btn-danger pull-right"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Yes<span class="sr-only"> delete category</span></button>
+			</div>
+		</form> 
+	</div>
+</div><!--items-->
+{%endblock%}  

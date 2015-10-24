@@ -1,17 +1,24 @@
 {%extends "base.html" %}
 {%block content %}
 
-<h1> Add new item in {{ category_name }} </h1>
+	<h2 class="panel-heading"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> Add new item to <strong>{{ category_name }}</strong></h2>
+	<div class="panel-body">
+		<form action="{{ url_for('newItem', category_name=category_name )}}" method = 'POST'>
+			<div class="form-group">
+				<label for="name">Name:</label>
+				<input class="form-control" type='text' name='name'>
+			</div>
+			<div class="form-group">
+				<label for="description">Description:</label>
+				<textarea class="form-control" type='text' rows="5" name='description'></textarea>
+			</div>
+			<div id="buttons">
+				<a class="btn btn-success" href="{{ url_for('category', category_name=category_name ) }}"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel<span class="sr-only">and go back</span></a>
+				<button type="submit" class="btn btn-danger pull-right"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Create<span class="sr-only"> item</span></button>
+			</div>
+		</form> 
 
-<form action="{{ url_for('newItem', category_name=category_name )}}" method = 'POST'>
-
-<p>Name:</p>
-
-<input type='text' size='30' name='name'>
-
-<button type="submit" class="btn btn-default">Create</button>
-
-</form> 
-
-
+	</div>
+</div><!--items-->
 {%endblock%} 
+
