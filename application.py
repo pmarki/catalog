@@ -16,6 +16,7 @@ from flask import make_response
 import requests
 
 from sqlalchemy import create_engine, func
+from sqlalchemy.sql import label
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Category, Item, User
 
@@ -43,7 +44,7 @@ def login_required(f):
 
 @app.route('/')
 def homePage():
-    items = session.query(Item).order_by(Item.id.desc()).limit(5)
+    items = session.query(Item).order_by(Item.id.desc()).limit(10)
     return render_template('main.html', items = items, categories = categories(),  STATE=state(), user = loggedIn())
 
 
@@ -184,7 +185,7 @@ def newCategory():
         newCat = Category(name = request.form['name'], user_id = login_session['user_id'], description = request.form['description'])
         session.add(newCat)
         session.commit()
-        flash("New category created")
+        flash("New category created.")
         return redirect(url_for('homePage'))
 
     return render_template('newcategory.html', categories = categories(),  STATE=state(), user = loggedIn())
@@ -302,7 +303,6 @@ def deleteItem(item_name, category_name):
 @app.route('/catalog.json')
 def json():
     categories = session.query(Category).order_by(Category.name).all()
-    items = session.query(Item).order_by(Item.name).all()
     catalog = {}
 
     for cat in categories:
@@ -315,7 +315,7 @@ def json():
             .order_by(Item.name).all():
 
             item = {}
-            item["owner"] = it[1].name
+            item["owner"] = it[1].name #user name
             item["id"] = it[0].id
             item["name"] = it[0].name
             item["description"] = it[0].description
@@ -380,7 +380,8 @@ def state():
 
 #Return all categories 
 def categories():
-    return session.query(Category).order_by(Category.name).all()
+    categories = session.query(Category, func.count(Item.id)).outerjoin(Item).group_by(Category)
+    return categories
 
 
 #Return username or empty string if nobody is logged in
@@ -392,6 +393,6 @@ def loggedIn():
 
 
 if __name__ == '__main__':
-    app.secret_key = 'fsdfsdg56546fkadhfakds687689utdgdfsfdasdfsdaf'
+    app.secret_key = 'fsdfsdg56546fkadhfakds687689utdgdfsfd867asdfsdaf'
     app.debug = True
     app.run(host = '0.0.0.0', port = 5000) 

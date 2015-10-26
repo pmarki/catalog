@@ -53,29 +53,35 @@
                     </div>
                 {% endif %}
             {% endwith %}
-
-        <!-- child template -->
         
         <div id="categories" class="col-xs-5 panel panel-info">
-    <h2 class="panel-heading"><span class="glyphicon glyphicon-book" aria-hidden="true"></span> Categories</h2>
-    <div class="panel-body">
+            <h2 class="panel-heading"><span class="glyphicon glyphicon-book" aria-hidden="true"></span> Categories</h2>
+            <div class="panel-body">
 
-        {% for cat in categories %}  
-            {% if cat == category %}
-                <h3><span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span> {{cat.name}}
-            {% else %}
-                <h3><a title ="{{cat.description}}" href="{{ url_for('category', category_name=cat.name) }}">{{cat.name}}</a>
+                {% for cat in categories %}  
+                    {% if cat[0] == category %}
+                        <h3><span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span> {{cat[0].name}}, 
+                    {% else %}
+                        <h3><a title ="{{cat[0].description}}" href="{{ url_for('category', category_name=cat[0].name) }}">{{cat[0].name}}</a>
+                    {% endif %}
+                    <span class="badge"> {{ cat[1] }} </span>
+                    </h3>
+                {% endfor %}
+            </div>
+
+            <!-- dont show for unlogged users -->
+            {% if user %}
+                <div class="panel-footer">
+                    <p><a href="{{ url_for('newCategory') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add new category</a></p>
+                </div>
             {% endif %}
-            </h3>
-        {% endfor %}
-    </div>
-    <div class="panel-footer">
-        <p><a href="{{ url_for('newCategory') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add new category</a></p>
-    </div>
-</div><!--categories-->
-<div id="items" class="col-xs-6 panel panel-info col-xs-offset-1">
-        {% block content %}
-        {% endblock %}
+        </div><!--categories-->
+
+        <div id="items" class="col-xs-6 panel panel-info col-xs-offset-1">
+            {% block content %}
+
+
+            {% endblock %}
         </div><!--row-->
     </div><!--container-->
 
