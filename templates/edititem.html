@@ -12,15 +12,19 @@
 				<label for="description">Description:</label>
 				<textarea class="form-control" type='text' rows="5" name='description'>{{item.description}}</textarea>
 			</div>
-			<!-- changing item's category - todo later...
+			<!-- changing item's category -->
 			<div class="form-group">
-				<label for="category">Category: (still to do)</label>
+				<label for="category">Category:</label>
 				<select class="form-control" name="category">
 					{% for cat in categories %}
-						<option value="{{ cat.name }}">{{cat.name}}</option> 
+						{% if cat.name == item.category_name %}
+							<option value="{{ cat.name }}" selected>{{cat.name}}</option> 
+						{% else %}
+							<option value="{{ cat.name }}">{{cat.name}}</option> 
+						{% endif %}
 					{% endfor %}
 				</select>
-			</div> -->
+			</div> 
 			<div id="buttons">
 				<a class="btn btn-success" href="{{ url_for('item', category_name=item.category_name, item_name=item.name ) }}"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel<span class="sr-only">and go back</span></a>
 				<button type="submit" class="btn btn-danger pull-right"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Edit<span class="sr-only"> item</span></button>

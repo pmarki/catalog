@@ -4,6 +4,10 @@ import random, string
 import json as jso
 from functools import wraps
 
+from urlparse import urljoin
+from werkzeug.contrib.atom import AtomFeed
+import datetime
+
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
 import httplib2
@@ -50,9 +54,9 @@ def gconnect():
         response = make_response(jso.dumps('Invalid state parameter.'), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
+
     # Obtain authorization code
     code = request.data
-
     try:
         # Upgrade the authorization code into a credentials object
         oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
@@ -126,13 +130,12 @@ def gconnect():
 @app.route('/gdisconnect')
 def gdisconnect():
     # Only disconnect a connected user.
-    access_token = login_session['access_token']
-    if access_token is None:
-        response = make_response(
-            jso.dumps('Current user not connected.'), 401)
-        response.headers['Content-Type'] = 'application/json'
-        return response
+    if 'access_token' not in login_session:
+        flash('Current user not connected.')
+        return redirect(url_for('homePage'))
+
     #access_token = credentials.access_token
+    access_token = login_session['access_token']
     url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
@@ -150,10 +153,12 @@ def gdisconnect():
         return redirect(url_for('homePage'))
     else:
         # For whatever reason, the given token was invalid.
-        response = make_response(
-            jso.dumps('Failed to revoke token for given user.', 400))
-        response.headers['Content-Type'] = 'application/json'
-        return response
+        #response = make_response(
+         #   jso.dumps('Failed to revoke token for given user.', 400))
+        #response.headers['Content-Type'] = 'application/json'
+        #return response
+        flash('Failed to revoke token for given user.')
+        return redirect(url_for('homePage'))
 
 
 @app.route('/category/<string:category_name>/')
@@ -253,16 +258,16 @@ def newItem(category_name):
 @login_required
 def editItem(item_name, category_name):
     #check if user is allowed to edit the item
-    cat = session.query(Category).filter_by(name = category_name).one()
+    cat = session.query(Item).filter_by(name = item_name).one()
     if cat.user_id  != login_session['user_id']:
         flash("You are not allowed to edit this item.")
         return redirect(url_for('item', item_name=item_name, category_name=category_name))
 
     #proceed with request
     if request.method == 'POST':
-        #session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['new_category']})
         session.query(Item.name).filter_by(name = item_name).update({Item.name: request.form['name']})
         session.query(Item.description).filter_by(name = item_name).update({Item.description: request.form['description']})
+        session.query(Item.description).filter_by(name = item_name).update({Item.category_name: request.form['category']})
         session.commit()
         flash("Item edited.")
         return redirect(url_for('category', category_name=category_name))
@@ -296,12 +301,51 @@ def deleteItem(item_name, category_name):
 
 @app.route('/catalog.json')
 def json():
-    #category = session.query(Category).filter_by(name = category_name).all()
-    items = session.query(Item).order_by(Item.id).all()
-    
-    return jsonify(Items=[i.serialize for i in items])
+    categories = session.query(Category).order_by(Category.name).all()
+    items = session.query(Item).order_by(Item.name).all()
+    catalog = {}
 
-    
+    for cat in categories:
+        category = {}
+        category["description"] = cat.description
+        items = []
+        user_alias = aliased(User)
+        for it in session.query(Item, User).join(User, Item.user_id==User.id)\
+            .filter(Item.category_name == cat.name)\
+            .order_by(Item.name).all():
+
+            item = {}
+            item["owner"] = it[1].name
+            item["id"] = it[0].id
+            item["name"] = it[0].name
+            item["description"] = it[0].description
+            items.append(item)
+
+        category["items"] = items
+        catalog[cat.name] = category
+
+    return jsonify(catalog)
+
+
+@app.route('/recent.atom')
+def recent_feed():
+    feed = AtomFeed('Recent Items',
+                    feed_url=request.url, url=request.url_root)
+    items = session.query(Item).order_by(Item.id.desc()).limit(10).all()
+
+    for item in items:
+        feed.add(item.name, unicode(item.category_name),
+                 content_type='html',
+                 url=url_for("item", item_name = item.name, category_name = item.category_name),
+                 updated=datetime.datetime.now() #a cheat with time, I know ;)
+                 )
+    return feed.get_response()
+
+
+## Helper functions ##    
+
+
+#Create user form login_session and return user.id
 def createUser(login_session):
     newUser = User(name = login_session['username'], 
                 email = login_session['email'],
@@ -312,11 +356,13 @@ def createUser(login_session):
     return user.id
 
 
+#Return user object with given user_id
 def getUserInfo(user_id):
     user = session.query(User).filter_by(id = user_id).one()
     return user
 
 
+#return user.id if user with given username exists, otherwise return None
 def getUserID(username):
     try:
         user = session.query(User).filter_by(name = username).one()
@@ -324,9 +370,11 @@ def getUserID(username):
     except:
         return None
 
+
 #return state key for authentication
 def state():
-    login_session['state'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
+    if 'state' not in login_session:
+        login_session['state'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
     return login_session['state']
 
 
@@ -341,7 +389,9 @@ def loggedIn():
     if 'username' in login_session:
         user = login_session['username']
     return user
+
+
 if __name__ == '__main__':
-    app.secret_key = 'fsdfsdg56546fkadhfakds687689768gfdgdfsfdasdfsdaf'
+    app.secret_key = 'fsdfsdg56546fkadhfakds687689utdgdfsfdasdfsdaf'
     app.debug = True
     app.run(host = '0.0.0.0', port = 5000) 

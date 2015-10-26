@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
     <title>Catalog</title>
@@ -7,6 +8,10 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
     <script src="//apis.google.com/js/platform.js?onload=start"> 
     </script>
+    <link href="{{ url_for('recent_feed') }}"
+      rel="alternate"
+      title="Recent items" 
+      type="application/atom+xml">
 
 </head>
 <body class="lead">
@@ -15,16 +20,18 @@
             <div class="col-xs-1"></div>
             <div class="col-xs-9"> 
                 <h1><a href="{{ url_for('homePage') }}"> Catalog App</a></h1>
-                <p><span class="glyphicon glyphicon-user" aria-hidden="true"></span> <span id="user">{{user}}</span></p>
+                <p><span id="user_img" class="glyphicon glyphicon-user" aria-hidden="true"></span> <span id="user">{{user}}</span></p>
             </div>
             <div class="col-xs-1">
-                <div id="logout"><a href="{{ url_for('gdisconnect') }}"  tabindex="0" class="btn btn-lg btn-danger" role="button">Log out</a></div>
+
+                <div id="logout"><a href=" {{url_for('gdisconnect') }}" title="Click to log out"  tabindex="0" class="btn btn-lg btn-danger" role="button">Log out</a></div>
+
                 <div id="signin" ><span class="g-signin" data-scope="openid email" data-clientid="521922821250-srdjgf49l12inch07bkl9emkrb4gqhkr.apps.googleusercontent.com" data-redirecturi="postmessage" data-accesstype="offline" data-cookiepolicy="single_host_origin" data-callback="signinCallback"  data-approvalprompt="force"></span></div>    
                 
             </div>
             <div class="col-xs-1"></div>
         </header>
-        <nav class="navbar navbar-default ">
+        <!--<nav class="navbar navbar-default ">
             <ol class="breadcrumb navbar-form navbar-left">
                 <li><a href="{{ url_for('homePage') }}">Home</a></li>
             </ol>
@@ -34,13 +41,14 @@
                 </div>
                 <button type="submit" class="btn btn-default">Search</button>
             </form>
-        </nav>
+        </nav> -->
         <div class="row">
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
-                    <div id="message" class="alert alert-warning" role="alert">
+                    <div  class="alert alert-warning alert-dismissible" role="alert">
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                         {% for message in messages %}
-                            <p>{{message}}</p>
+                            <p id="message">{{message}}</p>
                         {% endfor %}
                     </div>
                 {% endif %}
@@ -82,6 +90,7 @@ jQuery(document).ready(function() {
     } else {
         $('#signin').attr('style', 'display: block');
         $('#logout').attr('style', 'display: none');
+        $('#user_img').attr('style', 'display: none');
     }
 
 
@@ -101,36 +110,61 @@ jQuery(document).ready(function() {
     // });
  });
 
+//function logOut() { //TODO Ajax logging out
+    // console.log("logging out");
+    // $.ajax({
+    //     type: 'POST',
+    //     url: '/gdisconnect',
+    //     processData: false,
+    //     contentType: 'application/octet-stream; charset=utf-8',
+    //     success: function(result) {
+    //         if (result == "1") {
+    //             $('#message').html( "Logged out.");
+    //             $('#signin').attr('style', 'display: block');
+    //             $('#logout').attr('style', 'display: none');
+    //             $('#user').text( "");
+    //             $('#user_img').attr('style', 'display: none');
+    //             console.log("Done!");
+    //         } else {
+    //             $('#message').html('Failed to logged out.');
+    //             console.log("Error!");
+    //         }
+    //     }
+
+    // });
+//}
+
 //Google athentication 
 function signinCallback(authResult) {
-    console.log("click");
+    console.log("logging in by google");
     $('#logout').attr('style', 'display: block');
     $('#signin').attr('style', 'display: none');
     $('#logout a').text("Logging...");
-            if (authResult['code']) {
-                //Send one-time-use code to the server
-                $.ajax({
-                    type: 'POST',
-                    url: '/gconnect?state={{STATE}}',
-                    processData: false,
-                    contentType: 'application/octet-stream; charset=utf-8',
-                    data: authResult['code'],
-                    success: function(result) {
-                        if (result) {
-                            $('#message').html( "Logged in as " + result);
-                            $('#logout a').text("Log out");
-                            $('#user').text( result );
+    if (authResult['code']) {
+        //Send one-time-use code to the server
+        $.ajax({
+            type: 'POST',
+            url: '/gconnect?state={{STATE}}',
+            processData: false,
+            contentType: 'application/octet-stream; charset=utf-8',
+            data: authResult['code'],
+            success: function(result) {
+                if (result) {
+                    $('#message').html( "Logged in as " + result);
+                    $('#logout a').text("Log out");
+                    $('#user').text( result );
+                    $('#user_img').attr('style', 'display: inline');
 
-                        } else if (authResult['error']) {
-                            console.log('There was an error: ' + authResult['error']);
-                        } else {
-                            $('#message').html('Failed to make a server-side call. Check your configuration and console.');
-                        }
-                    }
-
-                });
+                } else if (authResult['error']) {
+                    console.log('There was an error: ' + authResult['error']);
+                } else {
+                    $('#message').html('Failed to make a server-side call. Check your configuration and console.');
+                }
             }
-        }
+
+        });
+    }
+}
 </script>
 </body>
 </html>
