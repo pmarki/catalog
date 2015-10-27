@@ -41,6 +41,13 @@ def login_required(f):
             return redirect(url_for('homePage'))
     return wrap
 
+@app.before_request
+def csrf_protect():
+    if request.method == "POST":
+        token = login_session.pop('_csrf_token', None)
+        if not token or token != request.form.get('_csrf_token'):
+            abort(403)
+
 
 @app.route('/')
 def homePage():
@@ -398,6 +405,12 @@ def loggedIn():
         user = login_session['username']
     return user
 
+#generate csrf token
+def generate_csrf_token():
+    if '_csrf_token' not in login_session:
+        login_session['_csrf_token'] = 'fhfiuhfdiufhdshf9947774r78fgydfgfbjsdfvbdsv234142838dfgdufg'
+    return login_session['_csrf_token']
+app.jinja_env.globals['csrf_token'] = generate_csrf_token   
 
 if __name__ == '__main__':
     app.secret_key = 'fsdfsdg56546fkadhfakds64387689utdgdfsfd867asdfsdaf'
