@@ -148,7 +148,6 @@ def gdisconnect():
         del login_session['username']
         del login_session['email']
         del login_session['picture']
-        loggedIn = ""
 
         flash('Successfully logged out.')
         return redirect(url_for('homePage'))
@@ -252,7 +251,7 @@ def newItem(category_name):
 
     #proceed with request
     if request.method == 'POST':
-        newItem = Item(name = request.form['name'], category_name=category_name, user_id = login_session['user_id'], description = request.form['description'])
+        newItem = Item(name = request.form['name'], category_name=category_name, user_id = login_session['user_id'], description = request.form['description'], rate = request.form['rate'], url = request.form['url'])
         session.add(newItem)
         session.commit()
         flash("New item created")
@@ -274,6 +273,8 @@ def editItem(item_name, category_name):
     if request.method == 'POST':
         session.query(Item.name).filter_by(name = item_name).update({Item.name: request.form['name']})
         session.query(Item.description).filter_by(name = item_name).update({Item.description: request.form['description']})
+        session.query(Item.description).filter_by(name = item_name).update({Item.url: request.form['url']})
+        session.query(Item.description).filter_by(name = item_name).update({Item.rate: request.form['rate']})
         session.query(Item.description).filter_by(name = item_name).update({Item.category_name: request.form['category']})
         session.commit()
         flash("Item edited.")

@@ -40,6 +40,8 @@ class Item(Base):
     name = Column( String(80), nullable = False )
     id = Column( Integer, primary_key = True)
     description = Column( String(450) )
+    rate = Column( Integer )
+    url = Column ( String(100) )
     category_name = Column(String, ForeignKey('categories.name'))
     category = relationship(Category)
     user_id = Column(Integer, ForeignKey('users.id'))

@@ -6,7 +6,11 @@
 	<div class="panel-body">
 
 		{% for i in items %}
-        	<h3><a href="{{ url_for('item', category_name=category.name, item_name=i.name) }}"><span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span> {{i.name}} </a></h3>
+        	<h3>
+        		<a href="{{ url_for('item', category_name=category.name, item_name=i.name) }}"><span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span> {{i.name}} </a>
+        		<span class="pull-right"><span class="glyphicon glyphicon-star" aria-hidden="true"></span> {{i.rate}}</span>
+        	</h3>
+        	<p><small><a href="{{i.url}}"> See it</a></small></p>
         	<p><small>{{i.description}}</small></p>
 		{% endfor %}
 
