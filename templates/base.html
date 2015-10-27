@@ -73,12 +73,9 @@
                 {% endfor %}
             </div>
 
-            <!-- dont show for unlogged users -->
-            {% if user %}
-                <div class="panel-footer">
-                    <p><a href="{{ url_for('newCategory') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add new category</a></p>
-                </div>
-            {% endif %}
+            <div class="panel-footer userEditable">
+                <p><a href="{{ url_for('newCategory') }}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add new category</a></p>
+            </div>
         </div><!--categories-->
 
         <div id="items" class="col-xs-6 panel panel-info col-xs-offset-1">
@@ -97,10 +94,12 @@ jQuery(document).ready(function() {
         $('#signin').attr('style', 'display: none');
         $('#logout').attr('style', 'display: block');
         $('#user').text( '{{ user }}' );
+        $('.userEditable').attr('style', 'display: block');
     } else {
         $('#signin').attr('style', 'display: block');
         $('#logout').attr('style', 'display: none');
         $('#user_img').attr('style', 'display: none');
+        $('.userEditable').attr('style', 'display: none');
     }
 
 
@@ -164,6 +163,7 @@ function signinCallback(authResult) {
                     $('#logout a').text("Log out");
                     $('#user').text( result );
                     $('#user_img').attr('style', 'display: inline');
+                    $('.userEditable').attr('style', 'display: block');
 
                 } else if (authResult['error']) {
                     console.log('There was an error: ' + authResult['error']);
