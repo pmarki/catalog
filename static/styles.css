@@ -6,12 +6,21 @@ a {
     color: #333;
 }
 
-h1 a {
+header a {
     color: #fff;
 }
 header {
     border-radius: 4px;
     border: 1px solid #0260B1;
+    text-align: center;
+}
+
+#user {
+    position: absolute;
+}
+
+#home {
+    margin-right: 30px;
 }
 .row {
     padding: 20px;

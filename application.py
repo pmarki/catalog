@@ -182,11 +182,17 @@ def item(category_name, item_name):
 @login_required
 def newCategory():
     if request.method == 'POST':
-        newCat = Category(name = request.form['name'], user_id = login_session['user_id'], description = request.form['description'])
-        session.add(newCat)
-        session.commit()
-        flash("New category created.")
-        return redirect(url_for('homePage'))
+        try:
+
+            newCat = Category(name = request.form['name'], user_id = login_session['user_id'], description = request.form['description'])
+            session.add(newCat)
+            session.commit()
+            flash("New category created.")
+            return redirect(url_for('homePage'))
+        except:
+            session.rollback()
+            flash("Category '" + request.form['name'] + "' already exists")
+
 
     return render_template('newcategory.html', categories = categories(),  STATE=state(), user = loggedIn())
 
@@ -393,6 +399,6 @@ def loggedIn():
 
 
 if __name__ == '__main__':
-    app.secret_key = 'fsdfsdg56546fkadhfakds687689utdgdfsfd867asdfsdaf'
+    app.secret_key = 'fsdfsdg56546fkadhfakds64387689utdgdfsfd867asdfsdaf'
     app.debug = True
     app.run(host = '0.0.0.0', port = 5000) 
