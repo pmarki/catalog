@@ -339,18 +339,18 @@ def newItem(category_name):
 @login_required
 def editItem(item_name, category_name):
     #check if user is allowed to edit the item
-    cat = session.query(Item).filter_by(name = item_name).one()
+    cat = session.query(Item).filter_by(category_name = category_name, name = item_name).one()
     if cat.user_id  != login_session['user_id']:
         flash("You are not allowed to edit this item.")
         return redirect(url_for('item', item_name=item_name, category_name=category_name))
 
     #proceed with request
     if request.method == 'POST':
-        session.query(Item.name).filter_by(name = item_name).update({Item.name: request.form['name']})
-        session.query(Item.description).filter_by(name = item_name).update({Item.description: request.form['description']})
-        session.query(Item.description).filter_by(name = item_name).update({Item.url: request.form['url']})
-        session.query(Item.description).filter_by(name = item_name).update({Item.rate: request.form['rate']})
-        session.query(Item.description).filter_by(name = item_name).update({Item.category_name: request.form['category']})
+        session.query(Item.name).filter_by(category_name = category_name, name = item_name).update({Item.name: request.form['name']})
+        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.description: request.form['description']})
+        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.url: request.form['url']})
+        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.rate: request.form['rate']})
+        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.category_name: request.form['category']})
         session.commit()
         flash("Item edited.")
         return redirect(url_for('category', category_name=category_name))
@@ -372,7 +372,7 @@ def deleteItem(item_name, category_name):
     #proceed with request
     if request.method == 'POST':
         #session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['new_category']})
-        session.query(Item).filter_by(name = item_name).delete()
+        session.query(Item).filter_by(category_name = category_name, name = item_name).delete()
         session.commit()
         flash("Item deleted.")
         return redirect(url_for('category', category_name=category_name))
