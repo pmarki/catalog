@@ -25,7 +25,7 @@
 				<label for="url">Url:</label>
 				<input class="form-control" type='text' name='url'>
 			</div>
-			<input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+
 			<div id="buttons">
 				<a class="btn btn-success" href="{{ url_for('category', category_name=category_name ) }}"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel<span class="sr-only">and go back</span></a>
 				<button type="submit" class="btn btn-danger pull-right"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Create<span class="sr-only"> item</span></button>

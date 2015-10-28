@@ -12,7 +12,7 @@ from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
 import httplib2
 
-from flask import make_response
+from flask import make_response, abort, current_app
 import requests
 
 from sqlalchemy import create_engine, func
@@ -30,29 +30,90 @@ Base.metadata.bind = engine
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
+
 #login required decorator
-def login_required(f):
-    @wraps(f)
+def login_required(fn):
+    @wraps(fn)
     def wrap(*args, **kwargs):
         if 'username' in login_session:
-            return f(*args, **kwargs)
+            return fn(*args, **kwargs)
         else:
             flash('Sorry but you need to log in first.')
             return redirect(url_for('homePage'))
     return wrap
 
-@app.before_request
-def csrf_protect():
-    if request.method == "POST":
-        token = login_session.pop('_csrf_token', None)
-        if not token or token != request.form.get('_csrf_token'):
-            abort(403)
 
+#ssl for amazon login
+def ssl_required(fn):
+    @wraps(fn)
+    def decorated_view(*args, **kwargs):
+        if current_app.config.get("SSL"):
+            if request.is_secure:
+                return fn(*args, **kwargs)
+            else:
+                return redirect(request.url.replace("http://", "https://"))    
+        return fn(*args, **kwargs)        
+    return decorated_view
 
 @app.route('/')
 def homePage():
     items = session.query(Item).order_by(Item.id.desc()).limit(10)
     return render_template('main.html', items = items, categories = categories(),  STATE=state(), user = loggedIn())
+
+
+@app.route('/aconnect')
+@ssl_required
+def aconnect():
+    # Validate state token
+    if request.args.get('state') != login_session['state']:
+        response = make_response(jso.dumps('Invalid state parameter.'), 401)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+     
+    access_token = request.args.get('access_token')
+    # verify that the access token belongs to us
+    url = "https://api.amazon.com/auth/o2/tokeninfo?access_token=" + access_token
+    h = httplib2.Http()
+    result = jso.loads(h.request(url, 'GET')[1])
+    if result.get('error') is not None:
+        flash('Unable to log in. Incorrect token provided.')
+        return redirect(url_for('homePage'))
+
+    if result['aud'] != 'amzn1.application-oa2-client.fad2e989b87d4c6c9b6fef52d18e04d0' :
+        # the access token does not belong to us
+        flash('Unable to log in. Incorrect token provided.')
+        return redirect(url_for('homePage'))
+     
+    # exchange the access token for user profile
+    url = "https://api.amazon.com/user/profile"
+    headers={'Authorization':'bearer %s'%(access_token)}
+    h = httplib2.Http()
+    result = jso.loads(h.request(url, 'GET', headers=headers)[1])
+    if result.get('error') is not None:
+        flash( result["error"] )
+        return redirect(url_for('homePage'))
+
+    login_session['username'] = result['name']
+    login_session['email'] = result['email']
+    login_session['access_token'] = access_token
+    login_session['login_provider'] = "amazon"
+
+    #check if user exists, otherwise create new user
+    user_id = getUserID(login_session['username'])
+    if not user_id:
+        user_id = createUser(login_session)
+    login_session['user_id'] = user_id
+    flash('Logged in.')
+    return redirect(url_for('homePage'))
+
+
+def adisconnect():
+    del login_session['access_token']
+    del login_session['username']
+    del login_session['email']
+
+    flash('Successfully logged out.')
+    return redirect(url_for('homePage'))
 
 
 @app.route('/gconnect', methods=['POST'])
@@ -125,6 +186,7 @@ def gconnect():
     login_session['username'] = data['name']
     login_session['picture'] = data['picture']
     login_session['email'] = data['email']
+    login_session['login_provider'] = "google"
 
     #check if user exists, otherwise create new user
     user_id = getUserID(login_session['username'])
@@ -135,7 +197,13 @@ def gconnect():
 
 
 @app.route('/logout')
-@app.route('/gdisconnect')
+def logout():
+    if login_session['login_provider'] == "amazon":
+        return adisconnect()
+
+    if login_session['login_provider'] == "google":
+        return gdisconnect()
+
 def gdisconnect():
     # Only disconnect a connected user.
     if 'access_token' not in login_session:
@@ -362,8 +430,7 @@ def recent_feed():
 #Create user form login_session and return user.id
 def createUser(login_session):
     newUser = User(name = login_session['username'], 
-                email = login_session['email'],
-                picture = login_session['picture'])
+                email = login_session['email'])
     session.add(newUser)
     session.commit()
     user = session.query(User).filter_by(name = login_session['username']).first()
@@ -405,14 +472,9 @@ def loggedIn():
         user = login_session['username']
     return user
 
-#generate csrf token
-def generate_csrf_token():
-    if '_csrf_token' not in login_session:
-        login_session['_csrf_token'] = 'fhfiuhfdiufhdshf9947774r78fgydfgfbjsdfvbdsv234142838dfgdufg'
-    return login_session['_csrf_token']
-app.jinja_env.globals['csrf_token'] = generate_csrf_token   
+
 
 if __name__ == '__main__':
-    app.secret_key = 'fsdfsdg56546fkadhfakds64387689utdgdfsfd867asdfsdaf'
+    app.secret_key = 'fsdfsdg56546fkadhfautfd867asdfsdaf'
     app.debug = True
     app.run(host = '0.0.0.0', port = 5000) 

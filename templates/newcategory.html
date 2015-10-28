@@ -12,7 +12,7 @@
 				<label for="description">Description:</label>
 				<textarea class="form-control" type='text' rows="5" name='description'></textarea>
 			</div>
-			<input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+
 			<div id="buttons">
 				<a class="btn btn-success" href="{{ url_for('homePage') }}"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel<span class="sr-only">and go back</span></a>
 				<button type="submit" class="btn btn-danger pull-right"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Create<span class="sr-only"> category</span></button>

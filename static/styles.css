@@ -6,6 +6,10 @@ a {
     color: #333;
 }
 
+h2 a {
+    color: #31708F;
+}
+
 header a {
     color: #fff;
 }
@@ -13,6 +17,11 @@ header {
     border-radius: 4px;
     border: 1px solid #0260B1;
     text-align: center;
+}
+
+#LoginWithAmazon {
+    display: block;
+    margin-bottom: 10px;
 }
 
 #user {
