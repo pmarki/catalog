@@ -5,7 +5,11 @@
 	<h2 class="panel-heading"><span class="glyphicon glyphicon-file" aria-hidden="true"></span> Item details</h2>
 	<div class="panel-body">
 
-        <h3><span class="glyphicon glyphicon-menu-down" aria-hidden="true"></span> {{item.name}}</h3>
+        <h3>
+        	<span class="glyphicon glyphicon-menu-down" aria-hidden="true"></span> {{item.name}}
+        	<small><span class="pull-right"><span class="glyphicon glyphicon-star" aria-hidden="true"></span> {{item.rate}}</span></small>
+        </h3>
+        <p><small><img class="img-thumbnail img-responsive center-block" src="{{item.url}}"></small></p>
         <p><small>{{item.description}}</small></p>
 	</div>
 

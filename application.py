@@ -20,10 +20,10 @@ from sqlalchemy.sql import label
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Category, Item, User
 
+APPLICATION_NAME = "Catalog"
 app = Flask(__name__)
 
 CLIENT_ID = jso.loads( open( 'client_secrets.json', 'r').read())['web']['client_id']
-APPLICATION_NAME = "Catalog"
 
 engine = create_engine('sqlite:///catalog.db')
 Base.metadata.bind = engine
@@ -55,15 +55,22 @@ def ssl_required(fn):
         return fn(*args, **kwargs)        
     return decorated_view
 
+
 @app.route('/')
 def homePage():
     items = session.query(Item).order_by(Item.id.desc()).limit(10)
-    return render_template('main.html', items = items, categories = categories(),  STATE=state(), user = loggedIn())
+    return render_template('main.html', 
+                            items = items, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn())
 
 
 @app.route('/aconnect')
 @ssl_required
 def aconnect():
+    '''Perform amazon log in by POST and redirect to homePage, 
+    browser has to send state token in a query'''
     # Validate state token
     if request.args.get('state') != login_session['state']:
         response = make_response(jso.dumps('Invalid state parameter.'), 401)
@@ -108,6 +115,7 @@ def aconnect():
 
 
 def adisconnect():
+    '''Perform amazon log out'''
     del login_session['access_token']
     del login_session['username']
     del login_session['email']
@@ -118,6 +126,8 @@ def adisconnect():
 
 @app.route('/gconnect', methods=['POST'])
 def gconnect():
+    '''Perform google log in by POST and AJAX, 
+    browser has to send state token in a query'''
     # Validate state token
     if request.args.get('state') != login_session['state']:
         response = make_response(jso.dumps('Invalid state parameter.'), 401)
@@ -198,6 +208,7 @@ def gconnect():
 
 @app.route('/logout')
 def logout():
+    '''Log out user by value stored in login_session['login_provider']'''
     if login_session['login_provider'] == "amazon":
         return adisconnect()
 
@@ -205,6 +216,7 @@ def logout():
         return gdisconnect()
 
 def gdisconnect():
+    '''Perform google log out'''
     # Only disconnect a connected user.
     if 'access_token' not in login_session:
         flash('Current user not connected.')
@@ -238,27 +250,44 @@ def gdisconnect():
 
 @app.route('/category/<string:category_name>/')
 def category(category_name):
+    '''Render category.html template: shows all items in specified category '''
     category = session.query(Category).filter_by(name = category_name).one()
-    items = session.query(Item).order_by(Item.name).filter_by(category_name = category.name).all()
+    items = session.query(Item).order_by(Item.name)\
+            .filter_by(category_name = category.name).all()
     
-    return render_template('category.html', category = category, items = items, categories = categories(),  STATE=state(), user = loggedIn()) 
+    return render_template('category.html', 
+                            category = category, 
+                            items = items, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn()) 
 
 
 @app.route('/category/<string:category_name>/<string:item_name>/')
 def item(category_name, item_name):
+    '''Render item.html template: shows an item details in specified category '''
     category = session.query(Category).filter_by(name = category_name).one()
-    item = session.query(Item).order_by(Item.name).filter_by(category_name = category.name, name = item_name).one()
+    item = session.query(Item).order_by(Item.name)\
+           .filter_by(category_name = category.name, name = item_name).one()
     
-    return render_template('item.html', category = category, item = item, categories = categories(),  STATE=state(), user = loggedIn()) 
+    return render_template('item.html', 
+                            category = category, 
+                            item = item, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn()) 
 
 
 @app.route('/newCategory', methods=['GET', 'POST'])
 @login_required
 def newCategory():
+    '''Render newcategory.html template: add new category to the datebase
+    or process POST reguest to create submited category '''
     if request.method == 'POST':
         try:
-
-            newCat = Category(name = request.form['name'], user_id = login_session['user_id'], description = request.form['description'])
+            newCat = Category(name = request.form['name'], 
+                              user_id = login_session['user_id'], 
+                              description = request.form['description'])
             session.add(newCat)
             session.commit()
             flash("New category created.")
@@ -268,12 +297,18 @@ def newCategory():
             flash("Category '" + request.form['name'] + "' already exists")
 
 
-    return render_template('newcategory.html', categories = categories(),  STATE=state(), user = loggedIn())
+    return render_template('newcategory.html', 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/editcategory', methods=['GET', 'POST'])
 @login_required
 def editCategory(category_name):
+    '''Render editcategory.html template: edit the category details
+    or process POST reguest to submit edited category. This functions also takes
+    care of items belonging to this category '''
     #check if user is allowed to edit the category
     cat = session.query(Category).filter_by(name = category_name).one()
     if cat.user_id  != login_session['user_id']:
@@ -282,21 +317,35 @@ def editCategory(category_name):
 
     #proceed with request
     if request.method == 'POST':
-        session.query(Category.name).filter_by(name = category_name).update({Category.name: request.form['name']})
-        session.query(Category.name).filter_by(name = category_name).update({Category.description: request.form['description']})
-        session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['name']})
-        session.commit()
-        flash("Category edited.")
-        return redirect(url_for('category', category_name=request.form['name']))
+        try:
+            session.query(Category.name).filter_by(name = category_name)\
+                          .update({Category.name: request.form['name']})
+            session.query(Category.name).filter_by(name = category_name)\
+                          .update({Category.description: request.form['description']})
+            session.query(Item.category_name).filter_by(category_name = category_name)\
+                          .update({Item.category_name: request.form['name']})
+            session.commit()
+            flash("Category edited.")
+            return redirect(url_for('category', category_name=request.form['name']))
+        except:
+            session.rollback()
+            flash("Category '" + request.form['name'] + "' already exists")
 
     #show edit category page
     category = session.query(Category).filter_by(name = category_name).one()
-    return render_template('editcategory.html', category=category, categories = categories(),  STATE=state(), user = loggedIn())
+    return render_template('editcategory.html', 
+                            category=category, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/deletecategory', methods=['GET', 'POST'])
 @login_required
 def deleteCategory(category_name):
+    '''Render deletecategory.html template
+    or process POST reguest to delete submited category and all items belonging
+    to this category'''
     #check user permissions
     cat = session.query(Category).filter_by(name = category_name).one()
     if cat.user_id  != login_session['user_id']:
@@ -305,19 +354,34 @@ def deleteCategory(category_name):
 
     #proceed with request
     if request.method == 'POST':
-        session.query(Item.category_name).filter_by(category_name = category_name).delete()
-        session.query(Category).filter(Category.name == category_name).delete()
+        session.query(Category).filter_by(name = category_name).delete()
+
+        #delete or move items from this category
+        if request.form['options'] == 'deleteItems':
+            session.query(Item).filter(Category.name == category_name).delete()
+        else:
+            session.query(Item.category_name)\
+              .filter_by(category_name = category_name)\
+              .update({Item.category_name: request.form['category']})
+   
         session.commit()
         flash("Category deleted.")
         return redirect(url_for('homePage'))
 
     #show delete category page
-    return render_template('deletecategory.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
+    return render_template('deletecategory.html', 
+                            category_name=category_name, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/newitem', methods=['GET', 'POST'])
 @login_required
 def newItem(category_name):
+    '''Render newitem.html template: add new item to the category
+    or process POST reguest to create submited item. This function does not
+    allow to duplicte a name of the item in the category '''
     #check user permissions
     cat = session.query(Category).filter_by(name = category_name).one()
     if cat.user_id  != login_session['user_id']:
@@ -326,64 +390,122 @@ def newItem(category_name):
 
     #proceed with request
     if request.method == 'POST':
-        newItem = Item(name = request.form['name'], category_name=category_name, user_id = login_session['user_id'], description = request.form['description'], rate = request.form['rate'], url = request.form['url'])
-        session.add(newItem)
-        session.commit()
-        flash("New item created")
-        return redirect(url_for('category', category_name=category_name))
+        exists = session.query(Item.name)\
+                .filter_by(category_name = category_name, name = request.form['name'] )\
+                .first()
+        print exists
+        #names in a category must be unique
+        if not exists:
+            newItem = Item(name = request.form['name'], 
+                            category_name=category_name, 
+                            user_id = login_session['user_id'], 
+                            description = request.form['description'], 
+                            rate = request.form['rate'], 
+                            url = request.form['url'])
+            session.add(newItem)
+            session.commit()
+            flash("New item created")
+            return redirect(url_for('category', 
+                                     category_name=category_name))
+        else:
+            flash("Item '" + request.form['name'] + "' already exists in this category")
 
-    return render_template('newitem.html', category_name=category_name, categories = categories(),  STATE=state(), user = loggedIn())
+    return render_template('newitem.html', 
+                            category_name=category_name, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/<string:item_name>/edititem', methods=['GET', 'POST'])
 @login_required
 def editItem(item_name, category_name):
+    '''Render edititem.html template: edit item's  details
+    or process POST reguest to edit submitted item. This function allows to 
+    change a category the item belongs to'''
     #check if user is allowed to edit the item
-    cat = session.query(Item).filter_by(category_name = category_name, name = item_name).one()
+    cat = session.query(Item).filter_by(category_name = category_name, 
+                                        name = item_name).one()
     if cat.user_id  != login_session['user_id']:
         flash("You are not allowed to edit this item.")
-        return redirect(url_for('item', item_name=item_name, category_name=category_name))
+        return redirect(url_for('item', 
+                                 item_name=item_name, 
+                                 category_name=category_name))
 
     #proceed with request
     if request.method == 'POST':
-        session.query(Item.name).filter_by(category_name = category_name, name = item_name).update({Item.name: request.form['name']})
-        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.description: request.form['description']})
-        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.url: request.form['url']})
-        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.rate: request.form['rate']})
-        session.query(Item.description).filter_by(category_name = category_name, name = item_name).update({Item.category_name: request.form['category']})
-        session.commit()
-        flash("Item edited.")
-        return redirect(url_for('category', category_name=category_name))
+
+        exists = session.query(Item.name)\
+                .filter_by(category_name = category_name, name = request.form['name'] )\
+                .first()
+        #names in a category must be unique
+        newName = request.form['name']
+        if (item_name == newName and exists) or (item_name != newName and not exists):
+            session.query(Item.name)\
+                          .filter_by(category_name = category_name, name = item_name)\
+                          .update({Item.name: request.form['name']})
+            session.query(Item.description)\
+                          .filter_by(category_name = category_name, name = item_name)\
+                          .update({Item.description: request.form['description']})
+            session.query(Item.description)\
+                          .filter_by(category_name = category_name, name = item_name)\
+                          .update({Item.url: request.form['url']})
+            session.query(Item.description)\
+                          .filter_by(category_name = category_name, name = item_name)\
+                          .update({Item.rate: request.form['rate']})
+            session.query(Item.description)\
+                          .filter_by(category_name = category_name, name = item_name)\
+                          .update({Item.category_name: request.form['category']})
+            session.commit()
+            flash("Item edited.")
+            return redirect(url_for('category', 
+                                     category_name=category_name))
+
+        else:
+            flash("Item '" + request.form['name'] + "' already exists in this category")
 
     #show edit item page
     item = session.query(Item).filter_by(name = item_name, category_name = category_name).one()
-    return render_template('edititem.html', item=item, categories = categories(),  STATE=state(), user = loggedIn())
+    return render_template('edititem.html', 
+                            item=item, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn())
 
 
 @app.route('/category/<string:category_name>/<string:item_name>/deleteitem', methods=['GET', 'POST'])
 @login_required
 def deleteItem(item_name, category_name):
+    '''Render deleteitem.html template
+    or process POST reguest to delete submited item '''
     #check if user is allowed to edit the item
     cat = session.query(Category).filter_by(name = category_name).one()
     if cat.user_id  != login_session['user_id']:
         flash("You are not allowed to delete this item.")
-        return redirect(url_for('item', item_name=item_name, category_name=category_name))
+        return redirect(url_for('item', 
+                                 item_name=item_name, 
+                                 category_name=category_name))
 
     #proceed with request
     if request.method == 'POST':
-        #session.query(Item.category_name).filter_by(category_name = category_name).update({Item.category_name: request.form['new_category']})
         session.query(Item).filter_by(category_name = category_name, name = item_name).delete()
         session.commit()
         flash("Item deleted.")
         return redirect(url_for('category', category_name=category_name))
 
     #show delete item page
-    item = session.query(Item).filter_by(name = item_name, category_name = category_name).one()
-    return render_template('deleteitem.html', item=item, categories = categories(),  STATE=state(), user = loggedIn())
+    item = session.query(Item).filter_by(name = item_name, 
+                                         category_name = category_name).one()
+    return render_template('deleteitem.html', 
+                            item=item, 
+                            categories = categories(),  
+                            STATE=state(), 
+                            user = loggedIn())
 
 
 @app.route('/catalog.json')
 def json():
+    '''return json object with all categories and items in them'''
     categories = session.query(Category).order_by(Category.name).all()
     catalog = {}
 
@@ -411,6 +533,7 @@ def json():
 
 @app.route('/recent.atom')
 def recent_feed():
+    '''Return last 10 items in atom format'''
     feed = AtomFeed('Recent Items',
                     feed_url=request.url, url=request.url_root)
     items = session.query(Item).order_by(Item.id.desc()).limit(10).all()
@@ -418,17 +541,21 @@ def recent_feed():
     for item in items:
         feed.add(item.name, unicode(item.category_name),
                  content_type='html',
-                 url=url_for("item", item_name = item.name, category_name = item.category_name),
+                 url=url_for("item", 
+                              item_name = item.name, 
+                              category_name = item.category_name),
                  updated=datetime.datetime.now() #a cheat with time, I know ;)
                  )
     return feed.get_response()
 
 
-## Helper functions ##    
 
 
-#Create user form login_session and return user.id
+                            ## Helper functions ##    
+
 def createUser(login_session):
+    '''Create user form login_session and return user.id
+    :inputs: login_session: flask session object '''
     newUser = User(name = login_session['username'], 
                 email = login_session['email'])
     session.add(newUser)
@@ -437,14 +564,16 @@ def createUser(login_session):
     return user.id
 
 
-#Return user object with given user_id
 def getUserInfo(user_id):
+    '''Return user object with given user_id
+    :inputs: user_id: integer '''
     user = session.query(User).filter_by(id = user_id).one()
     return user
 
 
-#return user.id if user with given username exists, otherwise return None
 def getUserID(username):
+    '''return user.id if user with given username exists, otherwise return None.
+    :inputs: username: string'''
     try:
         user = session.query(User).filter_by(name = username).one()
         return user.id
@@ -452,21 +581,24 @@ def getUserID(username):
         return None
 
 
-#return state key for authentication
 def state():
+    '''Return state key for authentication'''
     if 'state' not in login_session:
-        login_session['state'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
+        login_session['state'] = ''.join(random.choice(string.ascii_uppercase\
+                                   + string.digits) for x in xrange(32))
     return login_session['state']
 
 
-#Return all categories 
 def categories():
-    categories = session.query(Category, func.count(Item.id)).outerjoin(Item).group_by(Category)
+    '''Return all categories as a list of dictionaries'''
+    categories = session.query(Category, func.count(Item.id)).outerjoin(Item)\
+                 .group_by(Category)
     return categories
 
 
-#Return username or empty string if nobody is logged in
+
 def loggedIn():
+    '''Return username or empty string if nobody is logged in'''
     user = ""
     if 'username' in login_session:
         user = login_session['username']

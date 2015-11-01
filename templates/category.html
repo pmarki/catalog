@@ -8,10 +8,13 @@
 		{% for i in items %}
         	<h3>
         		<a href="{{ url_for('item', category_name=category.name, item_name=i.name) }}"><span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span> {{i.name}} </a>
-        		<span class="pull-right"><span class="glyphicon glyphicon-star" aria-hidden="true"></span> {{i.rate}}</span>
+        		<small><span class="pull-right"><span class="glyphicon glyphicon-star" aria-hidden="true"></span> {{i.rate}}</span></small>
         	</h3>
-        	<p><small><a href="{{i.url}}"> See it</a></small></p>
-        	<p><small>{{i.description}}</small></p>
+        	<div class="item-content">
+        		<p class="pull-left"><a href="{{i.url}}"><img class="small-image" src="{{i.url}}"></a></p>
+        		<p><small>{{i.description}}</small></p>
+        	</div>
+        	<div class="clearfix"></div>
 		{% endfor %}
 
 	</div>
