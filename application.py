@@ -358,7 +358,7 @@ def deleteCategory(category_name):
 
         #delete or move items from this category
         if request.form['options'] == 'deleteItems':
-            session.query(Item).filter(Category.name == category_name).delete()
+            session.query(Item).filter(Item.category_name == category_name).delete()
         else:
             session.query(Item.category_name)\
               .filter_by(category_name = category_name)\
@@ -401,7 +401,8 @@ def newItem(category_name):
                             user_id = login_session['user_id'], 
                             description = request.form['description'], 
                             rate = request.form['rate'], 
-                            url = request.form['url'])
+                            url = request.form['url'],
+                            url_image = request.form['url-image'])
             session.add(newItem)
             session.commit()
             flash("New item created")
@@ -450,6 +451,9 @@ def editItem(item_name, category_name):
             session.query(Item.description)\
                           .filter_by(category_name = category_name, name = item_name)\
                           .update({Item.url: request.form['url']})
+            session.query(Item.description)\
+                          .filter_by(category_name = category_name, name = item_name)\
+                          .update({Item.url_image: request.form['url-image']})
             session.query(Item.description)\
                           .filter_by(category_name = category_name, name = item_name)\
                           .update({Item.rate: request.form['rate']})
@@ -513,7 +517,6 @@ def json():
         category = {}
         category["description"] = cat.description
         items = []
-        user_alias = aliased(User)
         for it in session.query(Item, User).join(User, Item.user_id==User.id)\
             .filter(Item.category_name == cat.name)\
             .order_by(Item.name).all():
@@ -523,6 +526,7 @@ def json():
             item["id"] = it[0].id
             item["name"] = it[0].name
             item["description"] = it[0].description
+            item["url"] = it[0].url
             items.append(item)
 
         category["items"] = items
@@ -551,7 +555,7 @@ def recent_feed():
 
 
 
-                            ## Helper functions ##    
+    ##### Helper functions #####    
 
 def createUser(login_session):
     '''Create user form login_session and return user.id

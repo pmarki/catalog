@@ -41,7 +41,8 @@ class Item(Base):
     id = Column( Integer, primary_key = True)
     description = Column( String(450) )
     rate = Column( Integer )
-    url = Column ( String(100) )
+    url = Column ( String )
+    url_image = Column ( String )
     category_name = Column(String, ForeignKey('categories.name'))
     category = relationship(Category)
     user_id = Column(Integer, ForeignKey('users.id'))
@@ -53,7 +54,8 @@ class Item(Base):
             'name' : self.name,
             'description': self.description,
             'id': self.id,
-            'category_name': self.category_name
+            'category_name': self.category_name,
+            'url': self.url
         }
 
 
