@@ -10,7 +10,11 @@
         	<small><span class="pull-right"><span class="glyphicon glyphicon-star" aria-hidden="true"></span> {{item.rate}}</span></small>
         </h3>
         <p><small><img class="img-thumbnail img-responsive center-block" src="{{item.url_image}}"></small></p>
-        <p><small>{{item.description}}<a href="{{item.url}}"> <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a></small></p>
+        <p><small>{{item.description}}
+        {%if item.url != '' %}
+			<a href="{{item.url}}" target="_blank"><span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>
+		{% endif %}
+         </small></p>
 	</div>
 
 

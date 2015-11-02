@@ -15,7 +15,7 @@ import httplib2
 from flask import make_response, abort, current_app
 import requests
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, collate
 from sqlalchemy.sql import label
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Category, Item, User
@@ -252,8 +252,8 @@ def gdisconnect():
 def category(category_name):
     '''Render category.html template: shows all items in specified category '''
     category = session.query(Category).filter_by(name = category_name).one()
-    items = session.query(Item).order_by(Item.name)\
-            .filter_by(category_name = category.name).all()
+    items = session.query(Item)\
+            .filter_by(category_name = category.name).order_by(func.Lower(Item.name)).all()
     
     return render_template('category.html', 
                             category = category, 
@@ -435,13 +435,12 @@ def editItem(item_name, category_name):
 
     #proceed with request
     if request.method == 'POST':
-
         exists = session.query(Item.name)\
-                .filter_by(category_name = category_name, name = request.form['name'] )\
+                .filter_by(category_name = request.form['category'],
+                           name = request.form['name'] )\
                 .first()
         #names in a category must be unique
-        newName = request.form['name']
-        if (item_name == newName and exists) or (item_name != newName and not exists):
+        if not exists:
             session.query(Item.name)\
                           .filter_by(category_name = category_name, name = item_name)\
                           .update({Item.name: request.form['name']})
